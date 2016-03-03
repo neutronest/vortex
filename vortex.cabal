@@ -21,6 +21,11 @@ executable vortex
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.8 && <4.9,
-                       hmatrix >= 0.17.0
+                       hmatrix >= 0.17.0,
+                       normaldistribution >= 1.1.0,
+                       random >= 1.0.1
   hs-source-dirs:      vortex
   default-language:    Haskell2010
+  extensions:          GADTs,
+                       RankNTypes,
+                       TypeSynonymInstances
