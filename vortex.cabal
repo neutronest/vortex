@@ -28,4 +28,5 @@ executable vortex
   default-language:    Haskell2010
   extensions:          GADTs,
                        RankNTypes,
-                       TypeSynonymInstances
+                       TypeSynonymInstances,
+                       ExistentialQuantification
