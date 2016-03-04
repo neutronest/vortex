@@ -13,11 +13,18 @@ addLayer (Model l) layer = Model (l++[layer])
 
 forwardInterface :: Matrix R -> VLayer -> Matrix R
 forwardInterface input layer =
-  let (VLayer {layerType, rowNum, colNum, weight, bias, val}) = layer in
+  let (VLayer {layerType=layerType,
+              rowNum=_,
+              colNum=_,
+              weight=_,
+              bias=_,
+              val=_}) = layer in
   case layerType of
+    LinearLayer -> forwardInputLayer input layer
     InputLayer -> forwardInputLayer input layer
-    SIgmoidLayer -> forwardSigmoidLayer input layer
+    SigmoidLayer -> forwardSigmoidLayer input layer
+    --SoftmaxLayer -> forwardSoftmaxLayer input layer
 
-forward :: Matrix R -> Model a -> Matrix R
+forward :: Matrix R -> Model VLayer -> Matrix R
 forward input (Model []) = input
 forward input (Model xs) = foldl forwardInterface input xs
