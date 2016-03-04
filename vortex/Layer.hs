@@ -93,4 +93,4 @@ forwardSigmoidLayer input layer =
   sigmoid * (1.0 - sigmoid)
 
 {-- Softmax Layer --}
-softmaxLayerInit :: Int -> Int -> VLayer
+
