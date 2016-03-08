@@ -23,7 +23,8 @@ executable vortex
   build-depends:       base >=4.8 && <4.9,
                        hmatrix >= 0.17.0,
                        normaldistribution >= 1.1.0,
-                       random >= 1.0.1
+                       random >= 1.0.1,
+                       QuickCheck >= 2.8.2
   hs-source-dirs:      vortex
   default-language:    Haskell2010
   extensions:          GADTs,
