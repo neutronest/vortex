@@ -44,19 +44,48 @@ instance Optimize SGD where
           sgdNTimes=0
           } in
     _sgd params gparams deltaPre [] [] []
+
+
 data Adadelta = Adadelta {
   adaDecay :: Double,
   adaEpsilon :: Double,
-  adaNTimes :: Int,
+  adaNTimes :: Double,
+  adaParams :: [Matrix R],
   adaGparams :: [Matrix R],
   adaAccGrad :: [Matrix R],
   adaAccDelta :: [Matrix R]
                          }
 
-{-
+
 instance Optimize Adadelta where
-  paramUpdate adadelta params =
-    let gs = map (\g -> g / (nTimes adadelta)) (gparams adadelta) in
-    let accGradUpdate = map (\accg -> (decay adadelta) * accg + (1 - (decay adadelta) * g * g)) in
-    let ugd = 
--}    
+  paramUpdate ada =
+    let decay = adaDecay ada in
+    let epsilon = adaEpsilon ada in
+    let nTimes = adaNTimes ada in
+    let params = adaParams ada in
+    let gparams = adaGparams ada in
+    let accGrad = adaAccGrad ada in
+    let accDelta = adaAccDelta ada in
+    let _ada (px:pxs) (gx:gxs) (accgx:accgxs) (accdx:accdxs) paUpdate gradUpdate deltaUpdate gaZeros =
+          let r = rows px in
+          let c = cols px in
+          let decayMat = (r >< c) [decay ..] :: (Matrix R) in
+          let epsilonMat = (r >< c) [epsilon ..] :: (Matrix R) in
+          let nTimesMat = (r >< c) [nTimes ..] :: (Matrix R) in
+          let oneMat = (r >< c) [1.0 ..]:: (Matrix R) in
+          let gUp = accgx / nTimesMat in 
+          let gradUp = decayMat * accgx + (oneMat - decayMat) * gUp * gUp in
+          let ugd = (cmap (\x -> -(sqrt x)) (accdx + epsilonMat)) /  (cmap (\x -> sqrt x) (accgx + epsilonMat)) * gUp in
+          let deltaUp = decayMat * accdx + (oneMat - decayMat) * ugd * ugd in
+          let pu = px + ugd in
+          _ada pxs gxs accgxs accdxs (paUpdate++[pu]) (gradUpdate++[gradUp]) (deltaUpdate++[deltaUp]) (gaZeros++[(r >< c)[0.0 ..]])
+        _ada [] [] [] [] paUpdate gradUpdate deltaUpdate gaZeros = Adadelta {
+          adaDecay=decay,
+          adaEpsilon=epsilon,
+          adaNTimes=nTimes,
+          adaParams=paUpdate,
+          adaGparams=gaZeros,
+          adaAccGrad=gradUpdate,
+          adaAccDelta=deltaUpdate
+                                                                        }
+    in _ada params gparams accGrad accDelta [] [] [] [] 
