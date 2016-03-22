@@ -3,8 +3,9 @@ module ImageProcess where
 import Control.Monad
 import Data.Functor
 import Codec.Picture
-import Data.Vector.Storable (Vector)
+import Data.Vector.Storable (Vector, length, toList)
 import Control.Monad.Trans.Maybe
+import Numeric.LinearAlgebra
 --import Data.ByteString
 
 
@@ -20,6 +21,101 @@ getDynamicImage filepath = do
     Left err -> print err >> return Nothing
     Right image -> return (Just image)
 
+readImageInfo :: DynamicImage -> Image PixelRGB8
+readImageInfo image =
+  let imagePixel8@(Image w h rgbs) = convertRGB8 image in
+  imagePixel8
+
+
+getImageInfo :: FilePath -> IO(Maybe (Image PixelRGB8))
+getImageInfo filepath = do
+  res <- readImage filepath
+  case res of
+    Left err -> print err >> return Nothing
+    Right image -> return $ Just (readImageInfo image)
+  
+getImageWidth :: Image PixelRGB8 -> Int
+getImageWidth image =
+  let (Image w _ _) = image in
+  w
+
+getImageHeight :: Image PixelRGB8 -> Int
+getImageHeight image =
+  let (Image _ h _) = image in
+  h
+
+getImageRGBs :: Image PixelRGB8 -> Data.Vector.Storable.Vector(PixelBaseComponent Pixel8)
+getImageRGBs image =
+  let (Image _ _ rgbs) = image in
+  rgbs
+
+
+printPixels :: Show a => [a] -> IO()
+printPixels [] = return()
+printPixels (xr:xg:xb:xs) =
+  print [xr, xg, xb] >>
+  printPixels xs
+
+
+genRGBList :: Show a => [a] -> ([a], [a], [a])
+genRGBList [] = ([], [], [])
+genRGBList l =
+  let func [] rlist glist blist = (rlist, glist, blist)
+      func (xr:xg:xb:xs) rlist glist blist = func xs (rlist++[xr]) (glist++[xg]) (blist++[xb]) in
+  func l [] [] []
+
+genMatrixFromList :: [R] -> Int -> Int -> Maybe (Matrix R)
+genMatrixFromList [] _ _ = Nothing
+genMatrixFromList l w h = Just ((w >< h) l)
+
+
+testImageProcess :: FilePath -> IO()
+testImageProcess filepath = do
+    imageM <- getImageInfo filepath
+    case imageM of
+      Nothing -> putStrLn "nothing.."
+      Just imagePixel8 ->
+        putStrLn "the width of image: " >>
+        print (getImageWidth imagePixel8) >>
+        putStrLn "the height ofimage: " >>
+        print (getImageHeight imagePixel8) >>
+        print (Data.Vector.Storable.length (getImageRGBs imagePixel8)) >>
+        let rgbs = getImageRGBs imagePixel8 in
+        let rgbsList = Data.Vector.Storable.toList rgbs in
+        printPixels rgbsList
+
+
+
+
+
+
+
+
+{-
+
+
+decodeImageWidth :: IO(Maybe (Image PixelRGB8)) -> IO(Maybe Int))
+decodeImageWidth imageM = do
+  maybeImage <- imageM
+  case maybeImage of
+    Nothing -> return Nothing
+    Just (Image w h rgbs) -> return (Just w)
+  
+
+decodeImageHeight :: IO(Maybe(Image PixelRGB8)) -> IO(Maybe Int)
+decodeImageHeight imageM = do
+  maybeImage <- imageM
+  case maybeImage of
+    Nothing -> return Nothing
+    Just (Image w h rgbs) -> return (Just h)
+
+decodeImageRGBs :: IO(Maybe (Image PixelRGB8)) -> IO(Maybe (Vector(PixelBaseComponent Pixel8)))
+decodeImageRGBs imageM = do
+  maybeImage <- imageM
+  case maybeImage of
+    Nothing -> return Nothing
+    Just (Image w h rgbs) -> return (Just rgbs)
+
 
 readRGBsPixel8 :: Maybe DynamicImage -> IO(Maybe (Vector(PixelBaseComponent Pixel8)))
 readRGBsPixel8 Nothing = return Nothing
@@ -32,6 +128,7 @@ getRGBs filepath = do
   rgbs <- readRGBsPixel8 dynamicImage
   return rgbs
 
+-}
 {-}
 readRGBsPixel8 :: DynamicImage -> Maybe (Vector (PixelBaseComponent Pixel8))
 readRGBsPixel8 (ImageY8 image@(Image _ _ rgbs)) = Just rgbs
