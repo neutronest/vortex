@@ -57,11 +57,11 @@ printPixels (xr:xg:xb:xs) =
   printPixels xs
 
 
-genRGBList :: Show a => [a] -> ([a], [a], [a])
+genRGBList :: (Show a, Integral a, Fractional b) => [a] -> ([b], [b], [b])
 genRGBList [] = ([], [], [])
 genRGBList l =
-  let func [] rlist glist blist = (rlist, glist, blist)
-      func (xr:xg:xb:xs) rlist glist blist = func xs (rlist++[xr]) (glist++[xg]) (blist++[xb]) in
+  let func [] rlist glist blist = ((reverse rlist), (reverse glist), (reverse blist))
+      func (xr:xg:xb:xs) rlist glist blist = func xs (((fromIntegral xr)/256.0):rlist) (((fromIntegral xg)/256.0):glist) (((fromIntegral xb)/256.0):blist) in
   func l [] [] []
 
 genMatrixFromList :: [R] -> Int -> Int -> Maybe (Matrix R)
@@ -81,9 +81,17 @@ testImageProcess filepath = do
         print (getImageHeight imagePixel8) >>
         print (Data.Vector.Storable.length (getImageRGBs imagePixel8)) >>
         let rgbs = getImageRGBs imagePixel8 in
+        let w = getImageWidth imagePixel8 in
+        let h = getImageHeight imagePixel8 in
         let rgbsList = Data.Vector.Storable.toList rgbs in
-        printPixels rgbsList
-
+        let (rlist, glist, blist) = genRGBList rgbsList in
+        print (Prelude.length rlist) >>
+        print (Prelude.length glist) >>
+        print (Prelude.length blist) >>
+        let Just rMat = genMatrixFromList rlist w h in
+        let Just gMat = genMatrixFromList glist w h in
+        let Just bMat = genMatrixFromList blist w h in
+        print rMat
 
 
 
