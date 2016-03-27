@@ -13,7 +13,7 @@ data SGD = SGD {
   sgdParams :: [Matrix R],
   sgdGparams :: [Matrix R],
   sgdDeltaPre :: [Matrix R],
-  sgdNTimes :: Double
+  sgdBatchSize :: Double
                  } 
 
 instance Optimize SGD where
@@ -24,14 +24,14 @@ instance Optimize SGD where
     let params = sgdParams sgd in
     let gparams = sgdGparams sgd in
     let deltaPre = sgdDeltaPre sgd in
-    let nTimes = sgdNTimes sgd in
+    let batchSize = sgdBatchSize sgd in
     let _sgd (px:pxs) (gx: gxs) (dx:dxs) paUpdate deUpdate gaZeros  =
           let r = rows gx in
           let c = cols gx in
           let lrMat = (r >< c) [learningRate..]:: (Matrix R) in
-          let nTimesMat = (r >< c) [nTimes..] :: (Matrix R) in
+          let batchSizeMat = (r >< c) [batchSize..] :: (Matrix R) in
           let momMat = (r >< c) [momentum..] :: (Matrix R) in
-          let gUp = gx * lrMat / nTimesMat in
+          let gUp = gx * lrMat / batchSizeMat in
           let ugd = momMat * dx - gx in
           let pu = px + ugd in _sgd pxs gxs dxs (paUpdate++[pu]) (deUpdate++[ugd]) (gaZeros++[(r >< c) [0..]])
         _sgd [] [] [] paUpdate deUpdate gaZeros = SGD {
@@ -41,7 +41,7 @@ instance Optimize SGD where
           sgdParams=paUpdate,
           sgdGparams=gaZeros,
           sgdDeltaPre=deUpdate,
-          sgdNTimes=0
+          sgdBatchSize=0
           } in
     _sgd params gparams deltaPre [] [] []
 
@@ -49,7 +49,7 @@ instance Optimize SGD where
 data Adadelta = Adadelta {
   adaDecay :: Double,
   adaEpsilon :: Double,
-  adaNTimes :: Double,
+  adaBatchSize :: Double,
   adaParams :: [Matrix R],
   adaGparams :: [Matrix R],
   adaAccGrad :: [Matrix R],
@@ -61,7 +61,7 @@ instance Optimize Adadelta where
   paramUpdate ada =
     let decay = adaDecay ada in
     let epsilon = adaEpsilon ada in
-    let nTimes = adaNTimes ada in
+    let batchSize = adaBatchSize ada in
     let params = adaParams ada in
     let gparams = adaGparams ada in
     let accGrad = adaAccGrad ada in
@@ -71,21 +71,21 @@ instance Optimize Adadelta where
           let c = cols px in
           let decayMat = (r >< c) [decay ..] :: (Matrix R) in
           let epsilonMat = (r >< c) [epsilon ..] :: (Matrix R) in
-          let nTimesMat = (r >< c) [nTimes ..] :: (Matrix R) in
+          let batchSizeMat = (r >< c) [batchSize ..] :: (Matrix R) in
           let oneMat = (r >< c) [1.0 ..]:: (Matrix R) in
-          let gUp = accgx / nTimesMat in 
+          let gUp = accgx / batchSizeMat in 
           let gradUp = decayMat * accgx + (oneMat - decayMat) * gUp * gUp in
           let ugd = (cmap (\x -> -(sqrt x)) (accdx + epsilonMat)) /  (cmap (\x -> sqrt x) (accgx + epsilonMat)) * gUp in
           let deltaUp = decayMat * accdx + (oneMat - decayMat) * ugd * ugd in
           let pu = px + ugd in
-          _ada pxs gxs accgxs accdxs (paUpdate++[pu]) (gradUpdate++[gradUp]) (deltaUpdate++[deltaUp]) (gaZeros++[(r >< c)[0.0 ..]])
+          _ada pxs gxs accgxs accdxs (pu:paUpdate) (gradUp:gradUpdate) (deltaUp:deltaUpdate) (((r >< c)[0.0 ..]):gaZeros)
         _ada [] [] [] [] paUpdate gradUpdate deltaUpdate gaZeros = Adadelta {
           adaDecay=decay,
           adaEpsilon=epsilon,
-          adaNTimes=nTimes,
-          adaParams=paUpdate,
-          adaGparams=gaZeros,
-          adaAccGrad=gradUpdate,
-          adaAccDelta=deltaUpdate
+          adaBatchSize=batchSize,
+          adaParams=(reverse paUpdate),
+          adaGparams=(reverse gaZeros),
+          adaAccGrad=(reverse gradUpdate),
+          adaAccDelta=(reverse deltaUpdate)
                                                                         }
     in _ada params gparams accGrad accDelta [] [] [] [] 
