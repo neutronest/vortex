@@ -3,7 +3,7 @@ module Models where
 import Layer
 import Numeric.LinearAlgebra
 import Data.List
-
+import Loss
 
 data Model a = Model [a]
 
@@ -11,91 +11,60 @@ addLayer :: Model a -> a -> Model a
 addLayer (Model []) layer = Model [layer]
 addLayer (Model l) layer = Model (l++[layer])
 
-genModelParams :: Model VLayer -> [Matrix R]
-genModelParams (Model []) = []
-genModelParams (Model l) =
+genParamsList :: Model VLayer -> [Matrix R]
+genParamsList (Model []) = []
+genParamsList m =
   let genModelParams' res (Model []) = reverse res
-      genModelParams' res (Model (x:xs)) =
-        let (VLayer {layerType=_,
-                    rowNum=_,
-                    colNum=_,
-                    weight=w,
-                    bias=_,
-                    val=_,
-                    delta=_}) = x in
-        genModelParams (w x):res xs in
-  genModelParams' [] l
+      genModelParams' res (Model (mx:mxs)) =
+        genModelParams' ((weight mx):res) (Model mxs) in
+  genModelParams' [] m
 
+
+-- update the model's params from the params list
 updateModelParams :: Model VLayer -> [Matrix R] -> Model VLayer
 updateModelParams (Model []) _ = Model []
-updateModelParams l p  =
-  let updateModelParams' res (Model []) _ = reverse res
-      updateModelParams res (Model mx:mxs) (px:pxs) =  
-        let (VLayer {layerType=t,
-                     rowNum=c,
-                     colNum=l,
-                     weight=w,
-                     bias=b,
-                     val=v,
-                     delta=d}) = mx
-            newParams = VLayer {
-              layerType=t,
-              rowNum=c,
-              colNum=l,
-              weight=px,
-              bias=b,
-              val=v,
-              delta=d
-              } in updateModelParams' (newParams:res) mxs pxs
-  in updateModelParams' (Model []) l p
-  
+updateModelParams m p  =
+  let updateModelParams' (Model res) (Model []) _ = Model (reverse res)
+      updateModelParams' (Model res) (Model (mx:mxs)) (px:pxs) =
+        let newParams = mx {weight=px} in
+        updateModelParams' (Model (newParams:res)) (Model mxs) pxs
+  in updateModelParams' (Model []) m p
 
-genModelGParams :: Model VLayer -> [Matrix R]
-genModelGParams (Model []) = []
-genModelGParams (Model l) =
+genGParamsList :: Model VLayer -> [Matrix R]
+genGParamsList (Model []) = []
+genGParamsList l =
   let genModelGParams' res (Model []) = reverse res
-      genModelGParams' res (Model x:xs) =
-        let (VLayer {layerType=_,
-                    rowNum=r,
-                    colNum=c,
-                    weight=_,
-                    bias=_,
-                    val=_,
-                    delta=_}) = x in
-        let gp = (r >< c) [0..]::(Matrix R) in
-        genModelGParams' gp:res xs in
-  genModleGParams' [] l
+      genModelGParams' res (Model (mx:mxs)) =
+        let gp = ( (rowNum mx)  >< (colNum mx)) [0..]::(Matrix R) in
+        genModelGParams' (gp:res) (Model mxs) in
+  genModelGParams' [] l
 
 --updateModelGParams :: Model VLayer -> [Matrix R] -> Model VLayer
 
+-- update the gparams list from the model
+updateGParamsList :: Model VLayer -> [Matrix R] -> [Matrix R]
+updateGParamsList (Model []) _ = []
+updateGParamsList l gpl =
+  let updateModelGParams' res (Model []) _ = reverse res
+      updateModelGParams res (Model (mx:mxs)) (gpx:gpxs) =
+        let deltaUp = delta mx in
+        updateModelGParams' ((deltaUp+gpx):res) (Model mxs) gpxs in
+  updateModelGParams' [] l gpl
+  
 
 forwardInterface :: Matrix R -> VLayer -> Matrix R
 forwardInterface input layer =
-  let (VLayer {layerType=layerType,
-              rowNum=_,
-              colNum=_,
-              weight=_,
-              bias=_,
-              val=_}) = layer in
-  case layerType of
-    LinearLayer -> forwardInputLayer input layer
-    InputLayer -> forwardInputLayer input layer
+  case (layerType layer) of
+    LinearLayer -> forwardLinearLayer input layer
     SigmoidLayer -> forwardSigmoidLayer input layer
     --SoftmaxLayer -> forwardSoftmaxLayer input layer
     ReluLayer -> forwardReluLayer input layer
 
+
 backwardInterface :: VLayer -> Matrix R -> Matrix R
 backwardInterface layer output =
-  let (VLayer { layerType=layerType,
-                rowNum=_,
-                colNum=_,
-                weight=_,
-                bias=_,
-                val=_
-              }) = layer in
-  case layerType of
+  case (layerType layer) of
     LinearLayer -> backwardLinearLayer output layer
-    InputLayer -> backwardInputLayer output layer
     SigmoidLayer -> backwardSigmoidLayer output layer
     ReluLayer -> backwardReluLayer output layer
 
@@ -104,8 +73,17 @@ forward :: Matrix R -> Model VLayer -> Matrix R
 forward input (Model []) = input
 forward input (Model xs) = foldl forwardInterface input xs
 
-backward :: Model VLayer -> Matrix R -> Matrix R
-backward (Model []) output = output
-backward (Model xs) output = foldr backwardInterface output xs 
+-- the backpropagate algorithm of Neural Network
+-- update the delta of each layer from end to start
+backward :: String -> Matrix R -> Matrix R -> Model VLayer -> Model VLayer
+backward _ _ _ (Model []) = Model []
+backward lossType yMat tMat l =
+    let loss = getLoss lossType yMat tMat in
+    let backward' (Model res) (Model []) _ = Model (reverse res)
+        backward' (Model res) (Model (mx:mxs)) dw =
+          let dwUp = backwardInterface mx dw
+              layerUp = mx {delta=dwUp} in
+          backward' (Model (layerUp:res)) (Model mxs) dwUp in
+    backward' (Model []) l loss
 
-backPropagate :: Model VLayer 
+ 
