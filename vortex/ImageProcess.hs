@@ -1,10 +1,7 @@
 module ImageProcess where
 
-import Control.Monad
-import Data.Functor
 import Codec.Picture
 import Data.Vector.Storable (Vector, length, toList)
-import Control.Monad.Trans.Maybe
 import Numeric.LinearAlgebra
 --import Data.ByteString
 
