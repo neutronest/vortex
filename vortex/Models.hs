@@ -40,7 +40,6 @@ genGParamsList l =
   genModelGParams' [] l
 
 --updateModelGParams :: Model VLayer -> [Matrix R] -> Model VLayer
-
 -- update the gparams list from the model
 updateGParamsList :: Model VLayer -> [Matrix R] -> [Matrix R]
 updateGParamsList (Model []) _ = []
@@ -85,5 +84,3 @@ backward lossType yMat tMat l =
               layerUp = mx {delta=dwUp} in
           backward' (Model (layerUp:res)) (Model mxs) dwUp in
     backward' (Model []) l loss
-
- 
