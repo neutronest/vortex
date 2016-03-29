@@ -1,35 +1,12 @@
 module Layer where
 import Numeric.LinearAlgebra
-import Data.Dynamic
-import Data.Random.Normal
-import System.Random
 import Utils
 
-{-
-class CommonLayer a where
-  weightInit :: a -> Int -> Int -> Matrix R
-  biasInit :: a -> Int -> Int -> Matrix R
-  layerInit :: Int -> Int -> a
-  forward :: a -> Matrix R
-  backward :: a -> Matrix R -> Matrix R
-
-genNormal :: (Random a, Floating a) => [a]
-genNormal =
-  let g = mkStdGen 1001 in
-  normals g
--}
-{-- LinearLayer --}
-
-{-
-data LinearLayer where
-  LinearLayer :: forall a . CommonLayer a => a -> LinearLayer
--}
-
-data LayerType = InputLayer
-  | SigmoidLayer
+data LayerType =
+  SigmoidLayer
   | LinearLayer
-  | Softmax
-  | Relu
+  | SoftmaxLayer
+  | ReluLayer
 
 data VLayer = VLayer {
   layerType :: LayerType,
@@ -37,37 +14,19 @@ data VLayer = VLayer {
   colNum :: Int,
   weight :: Matrix R,
   bias :: Matrix R,
-  val :: Matrix R
+  val :: Matrix R,
+  delta :: Matrix R
   }
-
-
-{-- Input Layer --}
-
-inputLayerInit :: Int -> Int -> VLayer
-inputLayerInit rowNum colNum = VLayer {
-  layerType = InputLayer,
-  rowNum = rowNum,
-  colNum = colNum,
-  weight = (rowNum >< colNum) genNormal,
-  bias = (rowNum >< colNum) genNormal,
-  val = (rowNum >< colNum) [0..]
-                                }
-
-forwardInputLayer :: Matrix R -> VLayer -> Matrix R
-forwardInputLayer input inputLayer = (weight inputLayer) * input + (bias inputLayer)
-
-backwardInputLayer :: Matrix R -> VLayer -> Matrix R
-backwardInputLayer backInput inputLayer = backInput
 
 {-- Linear Layer --}
 linearLayerInit :: Int -> Int -> VLayer
-linearLayerInit rowNum colNum = VLayer {
+linearLayerInit r c = VLayer {
   layerType = LinearLayer,
-  rowNum = rowNum,
-  colNum = colNum,
-  weight = (rowNum >< colNum) genNormal,
-  bias = (rowNum >< colNum) genNormal,
-  val = (rowNum >< colNum) [0..]
+  rowNum = r,
+  colNum = c,
+  weight = (r >< c) genNormal,
+  bias = (r >< c) genNormal,
+  val = (r >< c) [0..]
                                 }
 
 forwardLinearLayer :: Matrix R -> VLayer -> Matrix R
@@ -76,16 +35,15 @@ forwardLinearLayer input inputLayer = (weight inputLayer) * input + (bias inputL
 backwardLinearLayer :: Matrix R -> VLayer -> Matrix R
 backwardLinearLayer backInput inputLayer = backInput
 
-
 {-- Sigmoid Layer --}
 sigmoidLayerInit :: Int -> Int -> VLayer
-sigmoidLayerInit rowNum colNum = VLayer {
+sigmoidLayerInit r c = VLayer {
   layerType = SigmoidLayer,
-  rowNum = rowNum,
-  colNum = colNum,
-  weight = (rowNum >< colNum) genNormal,
-  bias = (rowNum >< colNum) genNormal,
-  val = (rowNum >< colNum) [0..]
+  rowNum = r,
+  colNum = c,
+  weight = (r >< c) genNormal,
+  bias = (r >< c) genNormal,
+  val = (r >< c) [0..]
   }
 
 getSigmoidMatrix :: Matrix R -> Matrix R
@@ -106,29 +64,28 @@ backwardSigmoidLayer input layer =
 
 {-- Softmax Layer --}
 softmaxLayerInit :: Int -> Int -> VLayer
-softmaxLayerInit rowNum colNum = VLayer {
-  layerType = Softmax,
-  rowNum = rowNum,
-  colNum = colNum,
-  weight = (rowNum >< colNum) genNormal,
-  bias = (rowNum >< colNum) genNormal,
-  val = (rowNum >< colNum) [0..]
+softmaxLayerInit r c = VLayer {
+  layerType = SoftmaxLayer,
+  rowNum = r,
+  colNum = c,
+  weight = (r >< c) genNormal,
+  bias = (r >< c) genNormal,
+  val = (r >< c) [0..]
                                         }
 
 -- TODO: backward of softmax layer
 
 {-- Relu Layer --}
 reluLayerInit :: Int -> Int -> VLayer
-reluLayerInit rowNum colNum = VLayer {
-  layerType = Relu,
-  rowNum = rowNum,
-  colNum = colNum,
-  weight = (rowNum >< colNum) genNormal,
-  bias = (rowNum >< colNum) genNormal,
-  val = (rowNum >< colNum) [0..]
+reluLayerInit r c = VLayer {
+  layerType = ReluLayer,
+  rowNum = r,
+  colNum = c,
+  weight = (r >< c
+           ) genNormal,
+  bias = (r >< c) genNormal,
+  val = (r >< c) [0..]
                                      }
-
-
 forwardReluLayer :: Matrix R -> VLayer -> Matrix R
 forwardReluLayer input layer =
   let flagMatrix = cmap (\x -> if x >= 0.0 then 1.0 else 0.0 ) (weight layer) in
